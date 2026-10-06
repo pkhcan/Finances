@@ -1,0 +1,1124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parmis's 2026 Finances</title>
+<meta name="description" content="Budgets, a spending and income log, a planning calendar and savings goals, synced across your devices.">
+<meta name="theme-color" content="#0e6b5c" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111816" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Finances">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ledger app — month bar, summary strip, budgets beside the log, year view below */
+:root{
+  --bg:#eef1ee; --surface:#ffffff; --sunk:#e3e8e4; --line:#cfd7d1;
+  --fg:#18231e; --muted:#5b6b62; --accent:#0e6b5c; --accent-soft:#d3ebe4; --on-accent:#ffffff;
+  --income:#2f6fb0; --save:#8a4f8f; --save-soft:#efe1ef; --warn:#b7791f; --warn-soft:#f6e7cc; --over:#b23a3a; --over-soft:#f5d9d6;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Instrument Sans", "Helvetica Neue", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#18211e; --sunk:#0d1311; --line:#2a3631;
+  --fg:#e5ece8; --muted:#94a59c; --accent:#4fc2a8; --accent-soft:#1d3a33; --on-accent:#08201a;
+  --income:#7fb2e6; --save:#d49ad8; --save-soft:#33223a; --warn:#e2ab52; --warn-soft:#3a2f1a; --over:#ec7a72; --over-soft:#3f2221; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#18211e; --sunk:#0d1311; --line:#2a3631;
+  --fg:#e5ece8; --muted:#94a59c; --accent:#4fc2a8; --accent-soft:#1d3a33; --on-accent:#08201a;
+  --income:#7fb2e6; --save:#d49ad8; --save-soft:#33223a; --warn:#e2ab52; --warn-soft:#3a2f1a; --over:#ec7a72; --over-soft:#3f2221; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body)}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:20px 48px;display:grid;gap:20px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:1.5rem;font-weight:700}
+h2{font-size:1.05rem;font-weight:700}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.month{display:flex;align-items:center;gap:6px}
+.month output{font-family:var(--display);font-weight:500;font-size:1.15rem;min-width:9.5ch;text-align:center}
+.icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:36px;height:36px;display:grid;place-items:center}
+.icon-btn:hover{border-color:var(--accent)}
+.ghost{border:1px solid var(--line);background:transparent;border-radius:8px;padding:6px 12px;font-size:.88rem}
+.ghost:hover{border-color:var(--accent)}
+.status{font-size:.82rem;color:var(--muted)}
+
+/* summary strip */
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.strip>div{padding:14px 16px;display:grid;gap:2px;min-width:0}
+.strip>div+div{border-left:1px solid var(--line)}
+.strip .big{font-family:var(--mono);font-size:1.35rem;font-weight:500;font-variant-numeric:tabular-nums}
+.strip small{color:var(--muted);font-size:.8rem}
+.pos{color:var(--accent)} .neg{color:var(--over)} .inc{color:var(--income)}
+@media (max-width:720px){.strip{grid-template-columns:repeat(2,minmax(0,1fr))}.strip>div:nth-child(3){border-left:0}.strip>div:nth-child(n+3){border-top:1px solid var(--line)}}
+
+/* main grid */
+.main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:14px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+
+/* budgets */
+.cats{display:grid;gap:10px}
+.cat{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:baseline}
+.cat .name{font-weight:600;display:flex;gap:8px;align-items:center;min-width:0}
+.cat .fig{font-size:.85rem;color:var(--muted);text-align:right}
+.bar{grid-column:1/-1;height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;position:relative}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.cat.warn .bar i{background:var(--warn)} .cat.over .bar i{background:var(--over)}
+.pill{font-size:.68rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:99px}
+.pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.over{background:var(--over-soft);color:var(--over)}
+.pill.none{background:var(--sunk);color:var(--muted)}
+.total-row{border-top:1px solid var(--line);padding-top:10px}
+
+/* weeks */
+.weeks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.week{background:var(--sunk);border-radius:8px;padding:10px;display:grid;gap:6px;min-width:0}
+.week .wk{font-size:.75rem;color:var(--muted)}
+.week .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.95rem}
+.week .mini{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.week .mini i{display:block;height:100%;background:var(--accent)}
+.week.over .mini i{background:var(--over)} .week.over .amt{color:var(--over)}
+.week.now{outline:1.5px solid var(--accent)}
+@media (max-width:480px){.weeks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* setasides */
+.asides{display:flex;flex-wrap:wrap;gap:8px}
+.aside{border:1px dashed var(--line);border-radius:8px;padding:6px 10px;font-size:.85rem;display:flex;gap:8px}
+
+/* form */
+form.add{display:grid;gap:10px;background:var(--sunk);border-radius:8px;padding:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);justify-self:start}
+.seg button{border:0;background:transparent;padding:5px 14px;font-size:.88rem}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.fields{display:grid;grid-template-columns:8.5rem 7rem minmax(0,1fr);gap:8px}
+.fields .full{grid-column:1/-1}
+@media (max-width:520px){.fields{grid-template-columns:1fr 1fr}.fields .wide{grid-column:1/-1}}
+label.f{display:grid;gap:3px;font-size:.75rem;color:var(--muted);min-width:0}
+label.f input,label.f select{width:100%;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 9px;font-size:.92rem}
+label.f input:focus,label.f select:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.form-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.primary{border:0;background:var(--accent);color:var(--on-accent);border-radius:8px;padding:8px 16px;font-weight:600}
+.primary:disabled{opacity:.5;cursor:default}
+.hint{font-size:.8rem;color:var(--muted)}
+.err{font-size:.82rem;color:var(--over)}
+
+/* log */
+.log{display:grid;gap:2px;max-height:620px;overflow:auto;margin-inline:-4px;padding-inline:4px}
+.day{font-size:.75rem;color:var(--muted);font-weight:600;padding:10px 0 4px;position:sticky;top:0;background:var(--surface)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 8px;border-radius:7px}
+.row:hover{background:var(--sunk)}
+.row .d{min-width:0}
+.row .d b{font-weight:500;display:block;overflow-wrap:anywhere}
+.row .d span{font-size:.75rem;color:var(--muted)}
+.row .a{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.row.income .a{color:var(--income)}
+.row .acts{display:flex;gap:2px}
+.row .acts button{border:0;background:transparent;color:var(--muted);font-size:.78rem;padding:3px 6px;border-radius:5px}
+.row .acts button:hover{color:var(--fg);background:var(--line)}
+.row .acts button.confirm{color:var(--over)}
+.chip-uncat{color:var(--warn)!important}
+.empty{color:var(--muted);font-size:.9rem;padding:18px 4px;text-align:center}
+
+/* year */
+.chart-wrap{overflow-x:auto}
+svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+.legend{display:flex;gap:14px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+/* settings */
+details.settings>summary{cursor:pointer;font-family:var(--display);font-weight:700;list-style:none;display:flex;justify-content:space-between}
+details.settings>summary::-webkit-details-marker{display:none}
+details.settings>summary::after{content:"Edit";font-family:var(--body);font-weight:500;font-size:.85rem;color:var(--accent)}
+details.settings[open]>summary::after{content:"Close"}
+.set-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.set-row{display:grid;grid-template-columns:minmax(0,1fr) 6.5rem auto;gap:6px;align-items:center}
+.set-row input{width:100%;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:6px 8px}
+.set-row button{border:0;background:transparent;color:var(--muted);font-size:1rem;padding:2px 6px}
+.set-section{display:grid;gap:8px}
+/* planned */
+.bar{display:flex}
+.bar b{display:block;height:100%;background:repeating-linear-gradient(135deg,var(--warn) 0 3px,transparent 3px 6px)}
+.row.planned .a{color:var(--warn)}
+.row.planned b{font-style:italic}
+.pill.due{background:var(--warn-soft);color:var(--warn)}
+.check{display:flex;gap:8px;align-items:center;font-size:.85rem}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+
+/* savings */
+.save-month{display:grid;gap:6px}
+.save-month .bar i{background:var(--save)}
+.save-month .line{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.9rem}
+.goals{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.goal{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:8px;min-width:0}
+.goal h3{font-family:var(--display);font-size:1rem;margin:0;overflow-wrap:anywhere}
+.goal .gbig{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1.3rem;font-weight:500;color:var(--save)}
+.goal .gbig small{font-size:.8rem;color:var(--muted);font-weight:400}
+.goal .bar i{background:var(--save)}
+.goal .bar b{background:repeating-linear-gradient(135deg,var(--save) 0 3px,transparent 3px 6px);opacity:.6}
+.goal .meta{font-size:.8rem;color:var(--muted);display:grid;gap:2px}
+.goal .gacts{display:flex;gap:6px;flex-wrap:wrap}
+.goal .gacts button{border:1px solid var(--line);background:transparent;border-radius:7px;padding:4px 10px;font-size:.82rem}
+.goal .gacts button:hover{border-color:var(--save)}
+.goal .gacts button.confirm{color:var(--over);border-color:var(--over)}
+.goal.done{border-color:var(--save);background:var(--save-soft)}
+.goal-form{display:grid;gap:8px;background:var(--sunk);border-radius:8px;padding:12px}
+.gf-fields{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:640px){.gf-fields{grid-template-columns:1fr 1fr}.gf-fields label:first-child{grid-column:1/-1}}
+.seg button.save[aria-pressed="true"]{background:var(--save)}
+.row.saving .a{color:var(--save)}
+.it.sv span:last-child{color:var(--save)}
+.tots .sv{color:var(--save)}
+.daytotals .v.sv{color:var(--save)}
+
+/* calendar */
+.cal-legend{display:flex;gap:14px;font-size:.8rem;color:var(--muted);flex-wrap:wrap}
+.cal-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.cal-head,.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-head span{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:center}
+.cell{min-height:92px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:6px;display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0;font-size:.76rem;cursor:pointer;font-family:var(--body)}
+.cell:hover{border-color:var(--accent)}
+.cell.blank{border:0;background:transparent;cursor:default}
+.cell .dn{font-weight:600;font-size:.8rem;line-height:1.4;align-self:flex-start;padding:0 6px;margin-left:-6px;border-radius:99px}
+.cell.today .dn{background:var(--accent);color:var(--on-accent);margin-left:0}
+.cell.sel{outline:2px solid var(--accent);outline-offset:-1px;background:var(--accent-soft)}
+.cell.has-plan{border-style:dashed;border-color:var(--warn)}
+.it{display:flex;justify-content:space-between;gap:4px;min-width:0}
+.it span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;color:var(--muted)}
+.it span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.it.pl span:last-child{color:var(--warn)} .it.in span:last-child{color:var(--income)}
+.more{color:var(--muted);font-size:.7rem}
+.tots{display:none;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.68rem;line-height:1.3}
+.tots .pl{color:var(--warn)} .tots .in{color:var(--income)}
+@media (max-width:700px){.cell{min-height:60px;padding:4px}.items{display:none}.tots{display:grid}}
+.daybox{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}
+.daybox .panel-head .primary{padding:6px 12px;font-size:.88rem}
+.daytotals{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));background:var(--sunk);border-radius:8px}
+.daytotals>div{padding:8px 12px;display:grid;gap:1px;min-width:0}
+.daytotals>div+div{border-left:1px solid var(--line)}
+.daytotals .v{font-size:.98rem}
+.daytotals .v.big{font-size:1.15rem;font-weight:500}
+.daytotals .v.plan{color:var(--warn)} .daytotals .v.inc{color:var(--income)}
+
+@media (prefers-reduced-motion:no-preference){.bar i,.bar b,.week .mini i{transition:width .35s ease}}
+
+/* standalone app additions */
+body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+img{max-width:100%}
+.account{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted);flex-wrap:wrap}
+.account button{font-size:.82rem;padding:4px 10px}
+.auth{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
+.auth-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:grid;gap:14px}
+.auth-card form{display:grid;gap:10px}
+.auth-card p{margin:0}
+.auth-mark{width:44px;height:44px;border-radius:11px;background:var(--accent);display:grid;gap:4px;padding:11px 10px;align-content:center}
+.auth-mark i{display:block;height:4px;border-radius:2px;background:var(--on-accent)}
+.filebtn{cursor:pointer;display:inline-flex;align-items:center}
+code{font-family:var(--mono);font-size:.85em;background:var(--sunk);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<section class="auth" id="auth" hidden>
+  <div class="auth-card">
+    <div class="auth-mark" aria-hidden="true"><i style="width:100%"></i><i style="width:70%"></i><i style="width:45%"></i></div>
+    <h1>2026 Finances</h1>
+    <p class="hint" id="authLead">Sign in to see your budgets on every device.</p>
+    <form id="authForm" novalidate>
+      <label class="f">Email<input type="email" id="aEmail" autocomplete="email" required></label>
+      <label class="f">Password<input type="password" id="aPass" autocomplete="current-password" minlength="6" required></label>
+      <div class="form-actions">
+        <button class="primary" type="submit" id="aIn">Sign in</button>
+        <button class="ghost" type="button" id="aUp">Create account</button>
+      </div>
+      <span class="err" id="aErr" role="alert"></span>
+      <span class="hint" id="aMsg"></span>
+    </form>
+  </div>
+</section>
+
+<div class="wrap" id="app" hidden>
+  <header class="top">
+    <div>
+      <h1>2026 Finances</h1>
+      <div class="status" id="status">Opening your ledger…</div>
+      <div class="account"><span id="who"></span><button class="ghost" type="button" id="signOut">Sign out</button></div>
+    </div>
+    <div class="month">
+      <button class="icon-btn" id="prev" aria-label="Previous month">‹</button>
+      <output id="monthLabel">—</output>
+      <button class="icon-btn" id="next" aria-label="Next month">›</button>
+      <button class="ghost" id="today">This month</button>
+    </div>
+  </header>
+
+  <section class="strip" aria-label="Month summary">
+    <div><span class="label">Income kept</span><span class="big inc" id="sIncome">$0.00</span><small id="sIncomeSub">after tax set-aside</small></div>
+    <div><span class="label">Spent</span><span class="big" id="sSpent">$0.00</span><small id="sSpentSub">of $0.00 budget</small></div>
+    <div><span class="label">Budget left</span><span class="big" id="sLeft">$0.00</span><small id="sLeftSub">across all categories</small></div>
+    <div><span class="label">Net this month</span><span class="big" id="sNet">$0.00</span><small id="sNetSub">left after spending and saving</small></div>
+  </section>
+
+  <section class="panel" aria-labelledby="hCal">
+    <div class="panel-head">
+      <h2 id="hCal">Calendar</h2>
+      <div class="cal-legend"><span><i style="background:var(--fg)"></i>Paid</span><span><i style="background:var(--warn)"></i>Planned</span><span><i style="background:var(--income)"></i>Income</span><span><i style="background:var(--save)"></i>Savings</span><span id="planTotal"></span></div>
+    </div>
+    <div class="cal-head" aria-hidden="true"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+    <div class="cal" id="cal"></div>
+    <div class="daybox" id="daybox">
+      <div class="panel-head"><h2 id="dayTitle">—</h2><button class="primary" type="button" id="dayAdd">Plan an expense</button></div>
+      <div class="daytotals" id="dayTotals" aria-live="polite"></div>
+      <div id="dayList"></div>
+    </div>
+  </section>
+
+  <div class="main">
+    <section class="panel" aria-labelledby="hBudgets">
+      <div class="panel-head"><h2 id="hBudgets">Budgets</h2><span class="hint" id="paceHint"></span></div>
+      <div class="cats" id="cats"></div>
+      <div>
+        <div class="panel-head" style="margin-bottom:8px"><span class="label">By week</span><span class="hint" id="weekHint"></span></div>
+        <div class="weeks" id="weeks"></div>
+      </div>
+      <div>
+        <div class="label" style="margin-bottom:8px">Set aside each month</div>
+        <div class="asides" id="asides"></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="hLog">
+      <div class="panel-head"><h2 id="hLog">Log</h2><span class="hint" id="logCount"></span></div>
+      <form class="add" id="form" novalidate>
+        <div class="seg" role="group" aria-label="Entry type">
+          <button type="button" id="kSpend" aria-pressed="true">Spending</button>
+          <button type="button" id="kIncome" aria-pressed="false">Income</button>
+          <button type="button" id="kSave" aria-pressed="false">Savings</button>
+        </div>
+        <div class="fields">
+          <label class="f">Date<input type="date" id="fDate" required></label>
+          <label class="f">Amount<input type="number" id="fAmount" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required></label>
+          <label class="f wide" id="catWrap">Category<select id="fCat"></select></label>
+          <label class="f wide" id="goalWrap" hidden>Goal<select id="fGoal"></select></label>
+          <label class="f wide" id="taxWrap" hidden>Tax set-aside<input type="number" id="fTax" step="0.01" min="0" placeholder="0.00"></label>
+          <label class="f full">Description<input type="text" id="fDesc" placeholder="e.g. Gas, Pure Athletic Club membership" autocomplete="off"></label>
+          <label class="check full" id="wdWrap" hidden><input type="checkbox" id="fWithdraw">Withdrawal (taking money out of this goal)</label>
+          <label class="check full"><input type="checkbox" id="fPlanned">Planned, not paid yet</label>
+        </div>
+        <div class="form-actions">
+          <button class="primary" id="save" type="submit">Add entry</button>
+          <button class="ghost" id="cancelEdit" type="button" hidden>Cancel edit</button>
+          <span class="hint" id="taxHint"></span>
+          <span class="err" id="formErr" role="alert"></span>
+        </div>
+      </form>
+      <div class="log" id="log"><div class="empty">Loading entries…</div></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="hSave">
+    <div class="panel-head"><h2 id="hSave">Savings</h2><span class="hint" id="saveTotal"></span></div>
+    <div class="save-month" id="saveMonth"></div>
+    <div class="goals" id="goals"></div>
+    <form class="goal-form" id="goalForm" novalidate>
+      <span class="label" id="goalFormTitle">New goal</span>
+      <div class="gf-fields">
+        <label class="f">Name<input type="text" id="gName" placeholder="e.g. TFSA, Bank account to $10k" autocomplete="off"></label>
+        <label class="f">Target<input type="number" id="gTarget" min="0" step="1" placeholder="10000"></label>
+        <label class="f">Already saved<input type="number" id="gStart" min="0" step="0.01" placeholder="0"></label>
+        <label class="f">Target date (optional)<input type="date" id="gDate"></label>
+      </div>
+      <div class="form-actions"><button class="primary" type="submit" id="gSave">Add goal</button><button class="ghost" type="button" id="gCancel" hidden>Cancel</button><span class="err" id="gErr" role="alert"></span></div>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="hYear">
+    <div class="panel-head">
+      <h2 id="hYear">2026 at a glance</h2>
+      <div class="legend"><span><i style="background:var(--income)"></i>Income kept</span><span><i style="background:var(--accent)"></i>Spent</span><span><i style="background:var(--save)"></i>Saved</span><span><i style="background:var(--over)"></i>Over budget</span></div>
+    </div>
+    <div class="chart-wrap" id="year"></div>
+    <div class="hint" id="yearHint"></div>
+  </section>
+
+  <section class="panel">
+    <details class="settings" id="settingsBox">
+      <summary>Budgets &amp; set-asides</summary>
+      <div style="display:grid;gap:16px;margin-top:14px">
+        <div class="set-section">
+          <span class="label">Monthly category budgets</span>
+          <div class="set-grid" id="setCats"></div>
+          <div><button class="ghost" type="button" id="addCat">Add category</button></div>
+        </div>
+        <div class="set-section">
+          <span class="label">Monthly set-asides</span>
+          <div class="set-grid" id="setAsides"></div>
+          <div><button class="ghost" type="button" id="addAside">Add set-aside</button></div>
+        </div>
+        <div class="set-section">
+          <span class="label">Monthly savings target</span>
+          <div class="set-row" style="max-width:260px"><span>Save each month</span><input type="number" id="setSave" min="0" step="1"><span></span></div>
+        </div>
+        <div class="set-section">
+          <span class="label">Default tax set-aside on paycheques</span>
+          <div class="set-row" style="max-width:260px"><span>Percent of each paycheque</span><input type="number" id="setTax" min="0" max="100" step="1"><span></span></div>
+        </div>
+        <div class="set-section">
+          <span class="label">Backup &amp; import</span>
+          <div class="form-actions">
+            <label class="ghost filebtn" for="importFile">Import data file<input type="file" id="importFile" accept="application/json,.json" hidden></label>
+            <button class="ghost" type="button" id="exportBtn">Download backup</button>
+            <span class="hint" id="ioMsg"></span>
+          </div>
+        </div>
+        <div class="form-actions"><button class="primary" type="button" id="saveSettings">Save budgets</button><span class="hint" id="settingsMsg"></span></div>
+      </div>
+    </details>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script src="supabase.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const money = new Intl.NumberFormat('en-CA', {style:'currency', currency:'CAD'});
+  const fmt = n => money.format(Math.round((n || 0) * 100) / 100);
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const FALLBACK = {taxRate:20, categories:[], setAsides:[], monthlySavings:0};
+  const isSpend = e => e.kind!=='income' && e.kind!=='saving';
+  const isSave = e => e.kind==='saving';
+  const sv = e => (e.withdraw ? -1 : 1) * (+e.amount||0);
+
+  const state = {
+    db:null, entries:[], goals:[], settings:null, loaded:false, goalEdit:null, goalDel:null,
+    month:null, kind:'spend', editing:null, confirmDel:null, canWrite:true
+  };
+  const now = new Date();
+  const todayISO = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  state.month = {y: now.getFullYear(), m: now.getMonth()};
+
+  const settings = () => state.settings || FALLBACK;
+  const monthKey = (y,m) => y+'-'+String(m+1).padStart(2,'0');
+  const daysIn = (y,m) => new Date(y, m+1, 0).getDate();
+  const inMonth = (e, y, m) => typeof e.date === 'string' && e.date.slice(0,7) === monthKey(y,m);
+
+  function setStatus(t){ $('status').textContent = t; }
+
+  // ---------- render ----------
+  function render(){
+    const {y,m} = state.month;
+    $('monthLabel').textContent = MONTHS[m] + ' ' + y;
+    const s = settings();
+    const list = state.entries.filter(e => inMonth(e,y,m));
+    const actual = list.filter(e => !e.planned);
+    const spends = actual.filter(e => isSpend(e));
+    const incomes = actual.filter(e => e.kind === 'income');
+    const plannedSp = list.filter(e => e.planned && isSpend(e));
+    const plannedSum = plannedSp.reduce((a,e)=>a+(+e.amount||0),0);
+
+    const spent = spends.reduce((a,e)=>a+(+e.amount||0),0);
+    const gross = incomes.reduce((a,e)=>a+(+e.amount||0),0);
+    const tax = incomes.reduce((a,e)=>a+(+e.tax||0),0);
+    const kept = gross - tax;
+    const budgetTotal = s.categories.reduce((a,c)=>a+(+c.budget||0),0);
+
+    $('sIncome').textContent = fmt(kept);
+    $('sIncomeSub').textContent = gross ? fmt(gross)+' gross, '+fmt(tax)+' to tax' : 'after tax set-aside';
+    $('sSpent').textContent = fmt(spent);
+    $('sSpentSub').textContent = 'of '+fmt(budgetTotal)+' budget';
+    const left = budgetTotal - spent;
+    $('sLeft').textContent = fmt(left);
+    $('sLeft').className = 'big ' + (left < 0 ? 'neg' : 'pos');
+    $('sLeftSub').textContent = plannedSum ? fmt(left - plannedSum)+' after '+fmt(plannedSum)+' planned' : (left < 0 ? 'over across all categories' : 'across all categories');
+    const saved = actual.filter(isSave).reduce((a,e)=>a+sv(e),0);
+    const net = kept - spent - saved;
+    $('sNetSub').textContent = saved ? 'after spending and '+fmt(saved)+' saved' : 'left after spending and saving';
+    $('sNet').textContent = (net>0?'+':'') + fmt(net);
+    $('sNet').className = 'big ' + (net < 0 ? 'neg' : 'pos');
+
+    renderCats(s, spends, plannedSp);
+    renderWeeks(spends, budgetTotal);
+    renderAsides(s);
+    renderCalendar(list, plannedSum);
+    renderLog(list);
+    renderSavings(list);
+    renderYear();
+    renderCatSelect();
+    renderGoalSelect();
+    if (!document.activeElement || !$('settingsBox').contains(document.activeElement)) renderSettings();
+  }
+
+  function renderCats(s, spends, plannedSp){
+    const by = {}, pl = {};
+    spends.forEach(e => { const k = e.category || ''; by[k] = (by[k]||0) + (+e.amount||0); });
+    plannedSp.forEach(e => { const k = e.category || ''; pl[k] = (pl[k]||0) + (+e.amount||0); });
+    const known = new Set(s.categories.map(c=>c.name));
+    const rows = s.categories.map(c => ({name:c.name, budget:+c.budget||0, spent:by[c.name]||0, plan:pl[c.name]||0}));
+    [...new Set([...Object.keys(by), ...Object.keys(pl)])].filter(k => !known.has(k)).forEach(k => rows.push({name:k || 'Uncategorized', budget:0, spent:by[k]||0, plan:pl[k]||0, unbudgeted:true}));
+    const el = $('cats'); el.textContent = '';
+    if (!rows.length){ el.innerHTML = '<div class="empty">No categories yet. Add them under Budgets &amp; set-asides below.</div>'; return; }
+    let tb=0, ts=0;
+    rows.forEach(r => {
+      tb += r.budget; ts += r.spent;
+      const pct = r.budget ? r.spent / r.budget : (r.spent ? 1 : 0);
+      const cls = r.unbudgeted ? 'over' : pct > 1 ? 'over' : pct >= .85 ? 'warn' : '';
+      const div = document.createElement('div'); div.className = 'cat ' + cls;
+      const name = document.createElement('div'); name.className='name';
+      const nm = document.createElement('span'); nm.textContent = r.name; name.append(nm);
+      if (r.unbudgeted){ const p=document.createElement('span'); p.className='pill none'; p.textContent='No budget'; name.append(p); }
+      else if (pct>1){ const p=document.createElement('span'); p.className='pill over'; p.textContent='Over by '+fmt(r.spent-r.budget); name.append(p); }
+      else if (pct>=.85){ const p=document.createElement('span'); p.className='pill warn'; p.textContent='Nearly used'; name.append(p); }
+      else if (r.plan && r.budget && r.spent + r.plan > r.budget){ const p=document.createElement('span'); p.className='pill warn'; p.textContent='Plans go over'; name.append(p); }
+      const fig = document.createElement('div'); fig.className='fig num';
+      fig.textContent = (r.unbudgeted ? fmt(r.spent) : fmt(r.spent)+' / '+fmt(r.budget)) + (r.plan ? ' · '+fmt(r.plan)+' planned' : '');
+      const bar = document.createElement('div'); bar.className='bar';
+      const i = document.createElement('i'); i.style.width = Math.min(100, pct*100)+'%'; bar.append(i);
+      if (r.plan && r.budget){ const b=document.createElement('b'); b.style.width = Math.max(0, Math.min(100 - Math.min(100,pct*100), r.plan/r.budget*100))+'%'; bar.append(b); }
+      div.append(name, fig, bar); el.append(div);
+    });
+    const tot = document.createElement('div'); tot.className='cat total-row';
+    tot.innerHTML = '<div class="name">Total</div>';
+    const f = document.createElement('div'); f.className='fig num'; f.textContent = fmt(ts)+' / '+fmt(tb); tot.append(f);
+    el.append(tot);
+
+    const {y,m} = state.month;
+    const isCur = y===now.getFullYear() && m===now.getMonth();
+    if (isCur && tb){
+      const dayFrac = now.getDate()/daysIn(y,m);
+      $('paceHint').textContent = Math.round(dayFrac*100)+'% through the month, '+Math.round(ts/tb*100)+'% of budget used';
+    } else $('paceHint').textContent = '';
+  }
+
+  function renderWeeks(spends, budgetTotal){
+    const {y,m} = state.month; const dim = daysIn(y,m);
+    const ranges = [[1,7],[8,14],[15,21],[22,dim]];
+    const el = $('weeks'); el.textContent='';
+    const isCur = y===now.getFullYear() && m===now.getMonth();
+    ranges.forEach(([a,b],idx) => {
+      const amt = spends.filter(e => { const d=+e.date.slice(8,10); return d>=a && d<=b; }).reduce((s,e)=>s+(+e.amount||0),0);
+      const pace = budgetTotal * (b-a+1) / dim;
+      const w = document.createElement('div');
+      w.className = 'week' + (pace && amt>pace ? ' over':'') + (isCur && now.getDate()>=a && now.getDate()<=b ? ' now':'');
+      w.innerHTML = '<span class="wk">Week '+(idx+1)+' · '+a+'–'+b+'</span>';
+      const am = document.createElement('span'); am.className='amt'; am.textContent = fmt(amt);
+      const mini = document.createElement('div'); mini.className='mini';
+      const i=document.createElement('i'); i.style.width = pace ? Math.min(100, amt/pace*100)+'%' : '0%'; mini.append(i);
+      const p = document.createElement('span'); p.className='wk'; p.textContent='pace '+fmt(pace);
+      w.append(am, mini, p); el.append(w);
+    });
+    $('weekHint').textContent = 'pace = monthly budget spread over the days';
+  }
+
+  function renderAsides(s){
+    const el=$('asides'); el.textContent='';
+    if (!s.setAsides.length){ el.innerHTML='<span class="hint">None set.</span>'; return; }
+    let t=0;
+    s.setAsides.forEach(a => { t+= +a.amount||0; const d=document.createElement('div'); d.className='aside'; const n=document.createElement('span'); n.textContent=a.name; const v=document.createElement('span'); v.className='num'; v.textContent=fmt(a.amount); d.append(n,v); el.append(d); });
+    const tot=document.createElement('div'); tot.className='aside'; tot.style.borderStyle='solid';
+    const sb = s.categories.reduce((a,c)=>a+(+c.budget||0),0);
+    tot.innerHTML='<span>Budget + set-asides</span>'; const v=document.createElement('span'); v.className='num'; v.textContent=fmt(t+sb); tot.append(v); el.append(tot);
+  }
+
+  const dayLabel = iso => new Date(iso+'T12:00:00').toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'});
+
+  function rowEl(e){
+    const r=document.createElement('div'); r.className='row'+(e.kind==='income'?' income':'')+(isSave(e)?' saving':'')+(e.planned?' planned':'');
+    const d=document.createElement('div'); d.className='d';
+    const b=document.createElement('b'); b.textContent=e.desc || (e.kind==='income'?'Income':isSave(e)?(e.withdraw?'Withdrawal':'Deposit')+' · '+goalName(e.goal):'(no description)');
+    const sp=document.createElement('span');
+    if (e.kind==='income') sp.textContent = (e.planned?'Expected income':'Income') + (e.tax ? ' · '+fmt(e.tax)+' to tax, '+fmt(e.amount-e.tax)+' kept' : '');
+    else if (isSave(e)) sp.textContent = (e.planned?'Planned · ':'') + (e.withdraw?'Withdrawn from ':'Saved to ') + goalName(e.goal);
+    else { sp.textContent = (e.planned?'Planned · ':'') + (e.category || 'Uncategorized'); if(!e.category) sp.className='chip-uncat'; }
+    if (e.planned && e.date < todayISO()){ const p=document.createElement('span'); p.className='pill due'; p.textContent='Due'; p.style.marginLeft='6px'; sp.append(' ', p); }
+    d.append(b,sp);
+    const a=document.createElement('div'); a.className='a'; a.textContent=(e.kind==='income'?'+':isSave(e)&&e.withdraw?'−':'')+fmt(e.amount);
+    const acts=document.createElement('div'); acts.className='acts';
+    if (state.canWrite){
+      if (e.planned){ const pd=document.createElement('button'); pd.type='button'; pd.textContent= e.kind==='income'?'Received':isSave(e)?'Mark done':'Mark paid'; pd.onclick=()=>markPaid(e); acts.append(pd); }
+      const ed=document.createElement('button'); ed.type='button'; ed.textContent='Edit'; ed.onclick=()=>startEdit(e);
+      const del=document.createElement('button'); del.type='button';
+      if (state.confirmDel===e.id){ del.textContent='Confirm delete'; del.className='confirm'; del.onclick=()=>removeEntry(e.id); }
+      else { del.textContent='Delete'; del.onclick=()=>{ state.confirmDel=e.id; render(); }; }
+      acts.append(ed,del);
+    }
+    r.append(d,a,acts); return r;
+  }
+
+  function renderLog(list){
+    const el=$('log'); el.textContent='';
+    const nPlan = list.filter(e=>e.planned).length, nAct = list.length - nPlan;
+    $('logCount').textContent = state.loaded ? nAct + (nAct===1?' entry':' entries') + (nPlan ? ', '+nPlan+' planned' : '') : '';
+    if (!state.loaded){ el.innerHTML='<div class="empty">Loading entries…</div>'; return; }
+    if (!list.length){ el.innerHTML='<div class="empty">Nothing logged for this month yet. Add your first entry above, or pick a day on the calendar to plan one.</div>'; return; }
+    const plans = list.filter(e=>e.planned).sort((a,b)=> a.date.localeCompare(b.date));
+    if (plans.length){
+      const h=document.createElement('div'); h.className='day'; h.textContent='Planned'; el.append(h);
+      plans.forEach(e => { const r=rowEl(e); const s=r.querySelector('.d span'); s.textContent = dayLabel(e.date)+' · '+s.textContent; el.append(r); });
+    }
+    const sorted=list.filter(e=>!e.planned).sort((a,b)=> b.date.localeCompare(a.date) || (b.created||0)-(a.created||0));
+    let last='';
+    sorted.forEach(e => {
+      if (e.date!==last){ last=e.date; const h=document.createElement('div'); h.className='day'; h.textContent=dayLabel(e.date); el.append(h); }
+      el.append(rowEl(e));
+    });
+  }
+
+  function renderCalendar(list, plannedSum){
+    const {y,m}=state.month, dim=daysIn(y,m), first=new Date(y,m,1).getDay();
+    const today=todayISO();
+    if (!state.selDay || state.selDay.slice(0,7)!==monthKey(y,m)) state.selDay = today.slice(0,7)===monthKey(y,m) ? today : monthKey(y,m)+'-01';
+    $('planTotal').textContent = plannedSum ? fmt(plannedSum)+' planned this month' : '';
+    const el=$('cal'); el.textContent='';
+    for (let i=0;i<first;i++){ const b=document.createElement('div'); b.className='cell blank'; el.append(b); }
+    for (let d=1; d<=dim; d++){
+      const iso=monthKey(y,m)+'-'+String(d).padStart(2,'0');
+      const items=list.filter(e=>e.date===iso).sort((a,b)=>(a.planned?1:0)-(b.planned?1:0) || b.amount-a.amount);
+      const c=document.createElement('button'); c.type='button';
+      c.className='cell'+(iso===today?' today':'')+(iso===state.selDay?' sel':'')+(items.some(e=>e.planned)?' has-plan':'');
+      const paid=items.filter(e=>!e.planned&&isSpend(e)).reduce((a,e)=>a+(+e.amount||0),0);
+      const plan=items.filter(e=>e.planned&&isSpend(e)).reduce((a,e)=>a+(+e.amount||0),0);
+      const inc=items.filter(e=>e.kind==='income').reduce((a,e)=>a+(+e.amount||0),0);
+      const svd=items.filter(isSave).reduce((a,e)=>a+sv(e),0);
+      c.setAttribute('aria-label', dayLabel(iso)+(paid?', '+fmt(paid)+' paid':'')+(plan?', '+fmt(plan)+' planned':'')+(inc?', '+fmt(inc)+' income':'')+(svd?', '+fmt(svd)+' to savings':''));
+      const dn=document.createElement('span'); dn.className='dn'; dn.textContent=d; c.append(dn);
+      const box=document.createElement('div'); box.className='items';
+      items.slice(0,3).forEach(e=>{ const it=document.createElement('div'); it.className='it'+(e.planned?' pl':'')+(e.kind==='income'?' in':'')+(isSave(e)?' sv':'');
+        const n=document.createElement('span'); n.textContent=e.desc||(isSave(e)?goalName(e.goal):'')||e.category||'—'; const v=document.createElement('span'); v.textContent=(e.kind==='income'?'+':isSave(e)&&e.withdraw?'−':'')+fmt(e.amount).replace('.00',''); it.append(n,v); box.append(it); });
+      if (items.length>3){ const mo=document.createElement('div'); mo.className='more'; mo.textContent='+'+(items.length-3)+' more'; box.append(mo); }
+      c.append(box);
+      const t=document.createElement('div'); t.className='tots';
+      if (paid){ const s=document.createElement('span'); s.textContent=fmt(paid).replace('.00',''); t.append(s); }
+      if (plan){ const s=document.createElement('span'); s.className='pl'; s.textContent=fmt(plan).replace('.00',''); t.append(s); }
+      if (inc){ const s=document.createElement('span'); s.className='in'; s.textContent='+'+fmt(inc).replace('.00',''); t.append(s); }
+      if (svd){ const s=document.createElement('span'); s.className='sv'; s.textContent=fmt(svd).replace('.00',''); t.append(s); }
+      c.append(t);
+      c.onclick=()=>{ state.selDay=iso; state.confirmDel=null; render(); };
+      el.append(c);
+    }
+    // selected day
+    const sel=state.selDay, future = sel > today;
+    $('dayTitle').textContent = new Date(sel+'T12:00:00').toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric'});
+    $('dayAdd').textContent = future ? 'Plan an expense' : 'Add for this day';
+    $('dayAdd').hidden = !state.canWrite;
+    const dl=$('dayList'); dl.textContent='';
+    const its=list.filter(e=>e.date===sel);
+    const dPaid=its.filter(e=>!e.planned&&isSpend(e)).reduce((a,e)=>a+(+e.amount||0),0);
+    const dPlan=its.filter(e=>e.planned&&isSpend(e)).reduce((a,e)=>a+(+e.amount||0),0);
+    const dInc=its.filter(e=>e.kind==='income').reduce((a,e)=>a+(+e.amount||0),0);
+    const tot=$('dayTotals'); tot.textContent='';
+    const cell=(lbl,val,cls)=>{ const d=document.createElement('div'); const l=document.createElement('span'); l.className='label'; l.textContent=lbl; const v=document.createElement('span'); v.className='num v '+(cls||''); v.textContent=val; d.append(l,v); tot.append(d); };
+    cell('Day total', fmt(dPaid+dPlan), 'big');
+    cell('Paid', fmt(dPaid));
+    cell('Planned', fmt(dPlan), dPlan?'plan':'');
+    cell('Income', (dInc?'+':'')+fmt(dInc), dInc?'inc':'');
+    const dSv=its.filter(isSave).reduce((a,e)=>a+sv(e),0);
+    if (dSv) cell('Saved', fmt(dSv), 'sv');
+    if (!its.length){ const p=document.createElement('div'); p.className='hint'; p.textContent = future ? 'Nothing planned yet. Plan a bill, membership or purchase for this day.' : 'Nothing on this day.'; dl.append(p); }
+    else its.sort((a,b)=>(a.planned?1:0)-(b.planned?1:0)).forEach(e=>dl.append(rowEl(e)));
+  }
+
+  $('dayAdd').onclick=()=>{
+    if (state.editing) resetForm();
+    const sel=state.selDay;
+    if (state.kind!=='spend') setKind('spend');
+    $('fDate').value=sel; plannedTouched=false; syncPlanned();
+    $('form').scrollIntoView({block:'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto':'smooth'});
+    $('fAmount').focus({preventScroll:true});
+  };
+
+  async function markPaid(e){
+    const today=todayISO();
+    const body=Object.assign({}, e); delete body.id; body.planned=false;
+    if (body.date>today) body.date=today;
+    try { await state.db.doc('entries/'+e.id).set(body); }
+    catch(_){ setStatus('Could not update that entry. Try again.'); }
+  }
+
+  function renderYear(){
+    const y = state.month.y;
+    const s = settings();
+    const budgetTotal = s.categories.reduce((a,c)=>a+(+c.budget||0),0);
+    const data = MONTHS.map((_,m) => {
+      const l = state.entries.filter(e=>inMonth(e,y,m) && !e.planned);
+      const spent = l.filter(e=>isSpend(e)).reduce((a,e)=>a+(+e.amount||0),0);
+      const kept = l.filter(e=>e.kind==='income').reduce((a,e)=>a+(+e.amount||0)-(+e.tax||0),0);
+      const saved = l.filter(isSave).reduce((a,e)=>a+sv(e),0);
+      return {m, spent, kept, saved, any:l.length>0};
+    });
+    const max = Math.max(100, budgetTotal, ...data.map(d=>Math.max(d.spent,d.kept,d.saved)));
+    const nice = (v => { const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p; })(max);
+    const W=900,H=230,L=58,R=10,T=12,B=28, cw=(W-L-R)/12, bw=Math.min(14,cw/4.4);
+    const ys = v => T + (H-T-B) * (1 - v/nice);
+    let g='';
+    for (let i=0;i<=4;i++){ const v=nice*i/4, yy=ys(v);
+      g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/>`;
+      g+=`<text x="${L-8}" y="${yy+4}" text-anchor="end">${'$'+Math.round(v).toLocaleString('en-CA')}</text>`; }
+    if (budgetTotal){ const yy=ys(budgetTotal); g+=`<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--warn)" stroke-dasharray="4 4" stroke-width="1.2"/><text x="${W-R}" y="${yy-5}" text-anchor="end" style="fill:var(--warn)">monthly budget ${fmt(budgetTotal)}</text>`; }
+    data.forEach(d => {
+      const cx = L + cw*d.m + cw/2;
+      const sel = d.m===state.month.m;
+      if (sel) g+=`<rect x="${L+cw*d.m+2}" y="${T}" width="${cw-4}" height="${H-T-B}" rx="6" fill="var(--sunk)"/>`;
+      if (d.kept>0) g+=`<rect x="${cx-1.5*bw-2}" y="${ys(d.kept)}" width="${bw}" height="${ys(0)-ys(d.kept)}" rx="2" fill="var(--income)"><title>${MONTHS[d.m]} income kept ${fmt(d.kept)}</title></rect>`;
+      if (d.saved>0) g+=`<rect x="${cx+0.5*bw+2}" y="${ys(d.saved)}" width="${bw}" height="${ys(0)-ys(d.saved)}" rx="2" fill="var(--save)"><title>${MONTHS[d.m]} saved ${fmt(d.saved)}</title></rect>`;
+      if (d.spent>0) g+=`<rect x="${cx-0.5*bw}" y="${ys(d.spent)}" width="${bw}" height="${ys(0)-ys(d.spent)}" rx="2" fill="${budgetTotal && d.spent>budgetTotal?'var(--over)':'var(--accent)'}"><title>${MONTHS[d.m]} spent ${fmt(d.spent)}</title></rect>`;
+      g+=`<text x="${cx}" y="${H-9}" text-anchor="middle" style="${sel?'fill:var(--fg);font-weight:500':''}">${MONTHS[d.m].slice(0,3)}</text>`;
+      g+=`<rect x="${L+cw*d.m}" y="${T}" width="${cw}" height="${H-T}" fill="transparent" data-m="${d.m}" style="cursor:pointer"/>`;
+    });
+    $('year').innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:560px" role="img" aria-label="Income kept, spending and savings by month, ${y}">${g}</svg>`;
+    $('year').querySelectorAll('rect[data-m]').forEach(r => r.addEventListener('click', () => { state.month.m=+r.dataset.m; state.confirmDel=null; render(); }));
+    const ytdS = data.reduce((a,d)=>a+d.spent,0), ytdK = data.reduce((a,d)=>a+d.kept,0), ytdV = data.reduce((a,d)=>a+d.saved,0);
+    $('yearHint').textContent = state.loaded ? `Year to date: ${fmt(ytdK)} income kept, ${fmt(ytdS)} spent, ${fmt(ytdV)} saved. Click a month to open it.` : '';
+  }
+
+  function renderCatSelect(){
+    const sel=$('fCat'); const cur = sel.value;
+    const names = settings().categories.map(c=>c.name);
+    sel.textContent='';
+    const o0=document.createElement('option'); o0.value=''; o0.textContent='Uncategorized'; sel.append(o0);
+    names.forEach(n=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.append(o); });
+    if (state.editing && state.editing.category && !names.includes(state.editing.category)){ const o=document.createElement('option'); o.value=state.editing.category; o.textContent=state.editing.category; sel.append(o); }
+    sel.value = cur;
+  }
+
+  // ---------- savings ----------
+  function goalName(id){ const g=state.goals.find(g=>g.id===id); return g ? (g.name||'Goal') : 'Removed goal'; }
+
+  function renderGoalSelect(){
+    const sel=$('fGoal'); const cur=sel.value;
+    sel.textContent='';
+    const o0=document.createElement('option'); o0.value=''; o0.textContent= state.goals.length ? 'Choose a goal' : 'No goals yet'; sel.append(o0);
+    state.goals.forEach(g=>{ const o=document.createElement('option'); o.value=g.id; o.textContent=g.name; sel.append(o); });
+    sel.value=cur;
+  }
+
+  function goalStats(g){
+    const es=state.entries.filter(e=>isSave(e)&&e.goal===g.id);
+    const saved=(+g.start||0)+es.filter(e=>!e.planned).reduce((a,e)=>a+sv(e),0);
+    const planned=es.filter(e=>e.planned).reduce((a,e)=>a+sv(e),0);
+    return {saved, planned};
+  }
+
+  function renderSavings(list){
+    const s=settings();
+    const mSaved=list.filter(e=>isSave(e)&&!e.planned).reduce((a,e)=>a+sv(e),0);
+    const mPlan=list.filter(e=>isSave(e)&&e.planned).reduce((a,e)=>a+sv(e),0);
+    const target=+s.monthlySavings||0;
+    const sm=$('saveMonth'); sm.textContent='';
+    const line=document.createElement('div'); line.className='line';
+    const l1=document.createElement('span'); l1.innerHTML='<span class="label">Saved this month</span> ';
+    const v1=document.createElement('span'); v1.className='num'; v1.style.color='var(--save)'; v1.style.fontWeight='500';
+    v1.textContent = fmt(mSaved) + (target ? ' of '+fmt(target) : ''); l1.append(v1);
+    const l2=document.createElement('span'); l2.className='hint';
+    l2.textContent = (mPlan ? fmt(mPlan)+' planned' : '') + (!target ? (mPlan?' · ':'')+'Set a monthly target under Budgets & set-asides' : mSaved>=target ? (mPlan?' · ':'')+'Target reached' : (mPlan?' · ':'')+fmt(target-mSaved)+' to go');
+    line.append(l1,l2); sm.append(line);
+    if (target){ const bar=document.createElement('div'); bar.className='bar'; const i=document.createElement('i'); i.style.width=Math.max(0,Math.min(100,mSaved/target*100))+'%'; bar.append(i);
+      if (mPlan>0){ const b=document.createElement('b'); b.style.width=Math.max(0,Math.min(100-Math.min(100,mSaved/target*100), mPlan/target*100))+'%'; bar.append(b); } sm.append(bar); }
+
+    const el=$('goals'); el.textContent='';
+    let all=0;
+    if (!state.goals.length){
+      const p=document.createElement('div'); p.className='empty'; p.style.gridColumn='1/-1';
+      p.textContent = state.loaded ? 'No savings goals yet. Add one below, like a TFSA or an emergency fund, then log deposits with the Savings option in the form.' : 'Loading goals…';
+      el.append(p);
+    }
+    [...state.goals].sort((a,b)=>(a.created||0)-(b.created||0)).forEach(g=>{
+      const {saved, planned}=goalStats(g); all+=saved;
+      const tgt=+g.target||0, pct= tgt ? saved/tgt : 0;
+      const card=document.createElement('div'); card.className='goal'+(tgt && saved>=tgt?' done':'');
+      const h=document.createElement('h3'); h.textContent=g.name;
+      const big=document.createElement('div'); big.className='gbig'; big.textContent=fmt(saved);
+      if (tgt){ const sm2=document.createElement('small'); sm2.textContent=' of '+fmt(tgt); big.append(sm2); }
+      card.append(h,big);
+      if (tgt){ const bar=document.createElement('div'); bar.className='bar'; const i=document.createElement('i'); i.style.width=Math.max(0,Math.min(100,pct*100))+'%'; bar.append(i);
+        if (planned>0){ const b=document.createElement('b'); b.style.width=Math.max(0,Math.min(100-Math.min(100,pct*100), planned/tgt*100))+'%'; bar.append(b); } card.append(bar); }
+      const meta=document.createElement('div'); meta.className='meta';
+      const add=t=>{ const d=document.createElement('span'); d.textContent=t; meta.append(d); };
+      if (tgt) add(saved>=tgt ? 'Goal reached' : Math.round(pct*100)+'% there · '+fmt(tgt-saved)+' to go');
+      if (planned) add(fmt(planned)+' planned');
+      if (tgt && g.date && saved<tgt){
+        const end=new Date(g.date+'T12:00:00'), months=(end.getFullYear()-now.getFullYear())*12+(end.getMonth()-now.getMonth());
+        const label=end.toLocaleDateString('en-CA',{month:'short',year:'numeric'});
+        add(months>0 ? 'About '+fmt((tgt-saved)/months)+' a month to reach it by '+label : 'Target date '+label+(end<now?' has passed':''));
+      }
+      card.append(meta);
+      if (state.canWrite){
+        const acts=document.createElement('div'); acts.className='gacts';
+        const bAdd=document.createElement('button'); bAdd.type='button'; bAdd.textContent='Add money'; bAdd.onclick=()=>{
+          if (state.editing) resetForm(); setKind('saving'); renderGoalSelect(); $('fGoal').value=g.id;
+          $('form').scrollIntoView({block:'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto':'smooth'}); $('fAmount').focus({preventScroll:true}); };
+        const bEd=document.createElement('button'); bEd.type='button'; bEd.textContent='Edit'; bEd.onclick=()=>startGoalEdit(g);
+        const bDel=document.createElement('button'); bDel.type='button';
+        if (state.goalDel===g.id){ bDel.textContent='Confirm delete'; bDel.className='confirm'; bDel.onclick=()=>deleteGoal(g.id); }
+        else { bDel.textContent='Delete'; bDel.onclick=()=>{ state.goalDel=g.id; render(); }; }
+        acts.append(bAdd,bEd,bDel); card.append(acts);
+      }
+      el.append(card);
+    });
+    $('saveTotal').textContent = state.goals.length ? fmt(all)+' saved across '+state.goals.length+(state.goals.length===1?' goal':' goals') : '';
+    $('goalForm').hidden = !state.canWrite;
+  }
+
+  function resetGoalForm(){
+    state.goalEdit=null; ['gName','gTarget','gStart','gDate'].forEach(id=>$(id).value='');
+    $('goalFormTitle').textContent='New goal'; $('gSave').textContent='Add goal'; $('gCancel').hidden=true; $('gErr').textContent='';
+  }
+  function startGoalEdit(g){
+    state.goalEdit=g; $('gName').value=g.name||''; $('gTarget').value=g.target||''; $('gStart').value=g.start||''; $('gDate').value=g.date||'';
+    $('goalFormTitle').textContent='Edit goal'; $('gSave').textContent='Save goal'; $('gCancel').hidden=false;
+    $('goalForm').scrollIntoView({block:'nearest'}); $('gName').focus();
+  }
+  $('gCancel').onclick=resetGoalForm;
+  $('goalForm').addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const name=$('gName').value.trim();
+    if (!name){ $('gErr').textContent='Give the goal a name.'; return; }
+    if (!state.db){ $('gErr').textContent='Saving is unavailable right now.'; return; }
+    const body={name, target:Math.max(0,+$('gTarget').value||0), start:Math.round((+$('gStart').value||0)*100)/100, date:$('gDate').value||'', created: state.goalEdit ? (state.goalEdit.created||Date.now()) : Date.now()};
+    $('gSave').disabled=true; $('gErr').textContent='';
+    try { const ref = state.goalEdit ? state.db.doc('goals/'+state.goalEdit.id) : state.db.collection('goals').doc(); await ref.set(body); resetGoalForm(); }
+    catch(e){ $('gErr').textContent='Could not save the goal. Try again.'; }
+    $('gSave').disabled=false;
+  });
+  async function deleteGoal(id){
+    state.goalDel=null;
+    try { await state.db.doc('goals/'+id).delete(); if (state.goalEdit && state.goalEdit.id===id) resetGoalForm(); }
+    catch(_){ setStatus('Could not delete that goal. Try again.'); }
+    render();
+  }
+
+  // ---------- settings editor ----------
+  let draft = null;
+  function renderSettings(){
+    draft = JSON.parse(JSON.stringify(settings()));
+    drawSettings();
+  }
+  function drawSettings(){
+    const mk = (arr, key, host, label) => {
+      host.textContent='';
+      arr.forEach((it, idx) => {
+        const row=document.createElement('div'); row.className='set-row';
+        const n=document.createElement('input'); n.type='text'; n.value=it.name; n.id=host.id+'-n'+idx; n.setAttribute('aria-label',label+' name');
+        n.oninput=()=>{ it.name=n.value; };
+        const v=document.createElement('input'); v.type='number'; v.step='1'; v.min='0'; v.value=it[key]; v.id=host.id+'-v'+idx; v.className='num'; v.setAttribute('aria-label',label+' amount');
+        v.oninput=()=>{ it[key]=+v.value||0; };
+        const x=document.createElement('button'); x.type='button'; x.textContent='×'; x.setAttribute('aria-label','Remove '+it.name);
+        x.onclick=()=>{ arr.splice(idx,1); drawSettings(); };
+        row.append(n,v,x); host.append(row);
+      });
+    };
+    mk(draft.categories,'budget',$('setCats'),'Category');
+    mk(draft.setAsides,'amount',$('setAsides'),'Set-aside');
+    $('setTax').value = draft.taxRate;
+    $('setSave').value = draft.monthlySavings || 0;
+  }
+  $('addCat').onclick=()=>{ draft.categories.push({name:'New category',budget:0}); drawSettings(); };
+  $('addAside').onclick=()=>{ draft.setAsides.push({name:'Savings',amount:0}); drawSettings(); };
+  $('setTax').oninput=()=>{ draft.taxRate = +$('setTax').value||0; };
+  $('setSave').oninput=()=>{ draft.monthlySavings = +$('setSave').value||0; };
+  $('saveSettings').onclick=async()=>{
+    if (!state.db){ $('settingsMsg').textContent='Saving is unavailable right now.'; return; }
+    draft.categories = draft.categories.filter(c=>c.name.trim()).map(c=>({name:c.name.trim(),budget:+c.budget||0}));
+    draft.setAsides = draft.setAsides.filter(c=>c.name.trim()).map(c=>({name:c.name.trim(),amount:+c.amount||0}));
+    $('saveSettings').disabled=true; $('settingsMsg').textContent='Saving…';
+    try { await state.db.doc('settings/main').set(draft); $('settingsMsg').textContent='Saved.'; }
+    catch(e){ $('settingsMsg').textContent='Could not save: '+(e && e.message || 'try again'); }
+    $('saveSettings').disabled=false;
+  };
+
+  // ---------- form ----------
+  function setKind(k){
+    state.kind=k;
+    $('kSpend').setAttribute('aria-pressed', k==='spend'); $('kIncome').setAttribute('aria-pressed', k==='income'); $('kSave').setAttribute('aria-pressed', k==='saving');
+    $('catWrap').hidden = k!=='spend'; $('taxWrap').hidden = k!=='income'; $('goalWrap').hidden = k!=='saving'; $('wdWrap').hidden = k!=='saving';
+    $('fDesc').placeholder = k==='income' ? 'e.g. Active Range Method pay' : k==='saving' ? 'Optional note, e.g. $100 from paycheque' : 'e.g. Gas, Pure Athletic Club membership';
+    updateTaxHint();
+  }
+  function updateTaxHint(){
+    if (state.kind!=='income'){ $('taxHint').textContent=''; return; }
+    const amt=+$('fAmount').value||0, tax=+$('fTax').value||0;
+    $('taxHint').textContent = amt ? 'You keep '+fmt(amt-tax) : 'Tax set-aside fills at '+settings().taxRate+'%';
+  }
+  let taxTouched=false, plannedTouched=false;
+  function syncPlanned(){ if (!plannedTouched) $('fPlanned').checked = $('fDate').value > todayISO(); }
+  $('fDate').addEventListener('change', syncPlanned);
+  $('fPlanned').addEventListener('change', ()=>{ plannedTouched=true; });
+  $('kSpend').onclick=()=>setKind('spend');
+  $('kIncome').onclick=()=>setKind('income');
+  $('kSave').onclick=()=>setKind('saving');
+  $('kSave').classList.add('save');
+  $('fAmount').addEventListener('input',()=>{
+    if (state.kind==='income' && !taxTouched){ const a=+$('fAmount').value||0; $('fTax').value = a ? (Math.round(a*settings().taxRate)/100).toFixed(2) : ''; }
+    updateTaxHint();
+  });
+  $('fTax').addEventListener('input',()=>{ taxTouched=true; updateTaxHint(); });
+
+  function resetForm(){
+    state.editing=null; taxTouched=false;
+    $('fAmount').value=''; $('fDesc').value=''; $('fTax').value=''; $('fWithdraw').checked=false;
+    const {y,m}=state.month;
+    $('fDate').value = (y===now.getFullYear() && m===now.getMonth()) ? todayISO() : monthKey(y,m)+'-01';
+    $('save').textContent='Add entry'; $('cancelEdit').hidden=true; $('formErr').textContent='';
+    plannedTouched=false; syncPlanned();
+    updateTaxHint();
+  }
+  function startEdit(e){
+    state.editing=e; state.confirmDel=null; taxTouched=true;
+    setKind(e.kind==='income'?'income':isSave(e)?'saving':'spend');
+    renderGoalSelect(); $('fGoal').value=e.goal||''; $('fWithdraw').checked=!!e.withdraw;
+    $('fDate').value=e.date; $('fAmount').value=(+e.amount).toFixed(2); $('fDesc').value=e.desc||'';
+    renderCatSelect(); $('fCat').value=e.category||''; $('fTax').value = e.tax ? (+e.tax).toFixed(2) : '';
+    $('fPlanned').checked = !!e.planned; plannedTouched=true;
+    $('save').textContent='Save changes'; $('cancelEdit').hidden=false; updateTaxHint();
+    $('form').scrollIntoView({block:'nearest'}); $('fAmount').focus();
+    render();
+  }
+  $('cancelEdit').onclick=()=>{ resetForm(); render(); };
+
+  $('form').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const date=$('fDate').value, amount=+$('fAmount').value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)){ $('formErr').textContent='Pick a date.'; return; }
+    if (!(amount>0)){ $('formErr').textContent='Enter an amount above $0.'; return; }
+    if (!state.db){ $('formErr').textContent='Saving is unavailable right now. Reopen the page and try again.'; return; }
+    const body = {kind:state.kind, date, amount:Math.round(amount*100)/100, desc:$('fDesc').value.trim()};
+    if (state.kind==='spend') body.category=$('fCat').value;
+    else if (state.kind==='saving'){ body.goal=$('fGoal').value; if (!body.goal){ $('formErr').textContent = state.goals.length ? 'Pick a goal.' : 'Add a savings goal first, in the Savings section.'; return; } body.withdraw=$('fWithdraw').checked; }
+    else { const t=+$('fTax').value||0; if (t>amount){ $('formErr').textContent='Tax set-aside can’t be more than the amount.'; return; } body.tax=Math.round(t*100)/100; }
+    body.planned = $('fPlanned').checked;
+    body.created = state.editing ? (state.editing.created||Date.now()) : Date.now();
+    $('save').disabled=true; $('formErr').textContent='';
+    try {
+      const ref = state.editing ? state.db.doc('entries/'+state.editing.id) : state.db.collection('entries').doc();
+      await ref.set(body);
+      const [ey,em] = date.split('-').map(Number);
+      const keepDate = date;
+      resetForm();
+      if (ey!==state.month.y || em-1!==state.month.m){ state.month={y:ey,m:em-1}; }
+      state.selDay = keepDate;
+      $('fDate').value = keepDate; syncPlanned();
+      render();
+      $('fAmount').focus();
+    } catch(e){
+      $('formErr').textContent = e && e.code==='quota_exceeded' ? 'Storage is full. Delete old entries to add more.' : 'Could not save. Try again.';
+      if (e && e.code==='invalid_argument' && !state.editing){ state.canWrite=false; $('formErr').textContent='You can view this tracker but not change it.'; }
+    }
+    $('save').disabled=false;
+  });
+
+  async function removeEntry(id){
+    state.confirmDel=null;
+    try { await state.db.doc('entries/'+id).delete(); if (state.editing && state.editing.id===id) resetForm(); }
+    catch(e){ setStatus('Could not delete that entry. Try again.'); }
+    render();
+  }
+
+  // ---------- month nav ----------
+  function shift(d){ let {y,m}=state.month; m+=d; if(m<0){m=11;y--;} if(m>11){m=0;y++;} state.month={y,m}; state.confirmDel=null; if(!state.editing) resetForm(); render(); }
+  $('prev').onclick=()=>shift(-1); $('next').onclick=()=>shift(1);
+  $('today').onclick=()=>{ state.month={y:now.getFullYear(),m:now.getMonth()}; if(!state.editing) resetForm(); render(); };
+
+  // ---------- boot ----------
+  setKind('spend'); resetForm(); render();
+
+  // ---------- sync (Supabase) ----------
+  const CFG = window.FINANCE_CONFIG || {};
+  const CACHE_KEY = 'fin-cache-v1';
+  state.canWrite = true;
+
+  const fromEntry = r => ({id:r.id, kind:r.kind, date:r.date, amount:+r.amount||0, desc:r.description||'', category:r.category||'', tax:r.tax==null?0:+r.tax, planned:!!r.planned, withdraw:!!r.withdraw, goal:r.goal||'', created:+r.created||0});
+  const toEntry = (id,b,uid) => ({id, user_id:uid, kind:b.kind||'spend', date:b.date, amount:+b.amount||0, description:b.desc||'', category:b.category||null, tax:b.tax==null?null:+b.tax, planned:!!b.planned, withdraw:!!b.withdraw, goal:b.goal||null, created:+b.created||Date.now()});
+  const fromGoal = r => ({id:r.id, name:r.name||'', target:+r.target||0, start:+r.start_amount||0, date:r.target_date||'', created:+r.created||0});
+  const toGoal = (id,b,uid) => ({id, user_id:uid, name:b.name||'Goal', target:+b.target||0, start_amount:+b.start||0, target_date:b.date||null, created:+b.created||Date.now()});
+  const newId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);
+
+  function saveCache(){ try { localStorage.setItem(CACHE_KEY, JSON.stringify({uid:state.uid, entries:state.entries, goals:state.goals, settings:state.settings})); } catch(_){} }
+  function loadCache(uid){
+    try { const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      if (c && c.uid===uid){ state.entries=c.entries||[]; state.goals=c.goals||[]; state.settings=c.settings||null; state.loaded=true; } } catch(_){}
+  }
+  function upsertLocal(col, obj){ const arr=state[col]; const i=arr.findIndex(x=>x.id===obj.id); if (i>=0) arr[i]=obj; else arr.push(obj); }
+  function removeLocal(col, id){ state[col] = state[col].filter(x=>x.id!==id); }
+
+  // Same small surface the page already uses: db.doc('entries/id').set(...), db.collection('goals').doc()...
+  function makeDb(sb, uid){
+    const fail = err => { const e = new Error(err && err.message || 'Request failed'); e.code = navigator.onLine ? 'unavailable' : 'offline'; return e; };
+    const doc = path => { const [col, id] = path.split('/'); return {
+      async set(b){
+        if (col==='settings'){ const {error} = await sb.from('settings').upsert({user_id:uid, data:b}); if (error) throw fail(error); state.settings = Object.assign({}, FALLBACK, b); }
+        else if (col==='entries'){ const row = toEntry(id,b,uid); const {error} = await sb.from('entries').upsert(row); if (error) throw fail(error); upsertLocal('entries', fromEntry(row)); }
+        else if (col==='goals'){ const row = toGoal(id,b,uid); const {error} = await sb.from('goals').upsert(row); if (error) throw fail(error); upsertLocal('goals', fromGoal(row)); }
+        saveCache(); render();
+      },
+      async delete(){ const {error} = await sb.from(col).delete().eq('id', id); if (error) throw fail(error); removeLocal(col, id); saveCache(); render(); }
+    }; };
+    return { doc, collection: col => ({ doc: id => doc(col+'/'+(id || newId())) }) };
+  }
+
+  async function fetchAll(table){
+    let out=[], from=0;
+    for(;;){
+      const {data, error} = await state.sb.from(table).select('*').order('id').range(from, from+999);
+      if (error) throw error;
+      out = out.concat(data || []);
+      if (!data || data.length < 1000) break;
+      from += 1000;
+    }
+    return out;
+  }
+
+  async function refresh(){
+    if (!state.sb || !state.uid) return;
+    try {
+      const [entries, goals, s] = await Promise.all([
+        fetchAll('entries'), fetchAll('goals'),
+        state.sb.from('settings').select('data').eq('user_id', state.uid).maybeSingle()
+      ]);
+      if (s.error) throw s.error;
+      state.entries = entries.map(fromEntry);
+      state.goals = goals.map(fromGoal);
+      state.settings = s.data ? Object.assign({}, FALLBACK, s.data.data) : null;
+      state.loaded = true; saveCache();
+      setStatus(state.entries.length ? 'Synced · '+new Date().toLocaleTimeString('en-CA',{hour:'numeric',minute:'2-digit'}) : 'Synced · add your first entry, or import your data under Budgets & set-asides');
+    } catch(e){
+      setStatus(navigator.onLine ? 'Couldn’t reach your data. It will retry when you come back to the app.' : 'Offline · showing your last synced data');
+    }
+    render();
+  }
+
+  function subscribe(){
+    if (state.chan) state.sb.removeChannel(state.chan);
+    const onRow = (col, from) => p => {
+      if (p.eventType==='DELETE'){ if (p.old && p.old.id) removeLocal(col, p.old.id); }
+      else if (p.new && p.new.user_id===state.uid) upsertLocal(col, from(p.new));
+      saveCache(); render();
+    };
+    state.chan = state.sb.channel('fin-'+state.uid)
+      .on('postgres_changes', {event:'*', schema:'public', table:'entries'}, onRow('entries', fromEntry))
+      .on('postgres_changes', {event:'*', schema:'public', table:'goals'}, onRow('goals', fromGoal))
+      .on('postgres_changes', {event:'*', schema:'public', table:'settings'}, p => {
+        if (p.new && p.new.user_id===state.uid){ state.settings = Object.assign({}, FALLBACK, p.new.data); saveCache(); render(); }
+      })
+      .subscribe();
+  }
+
+  async function signedIn(session){
+    if (state.uid === session.user.id && state.db) return;
+    state.uid = session.user.id;
+    state.db = makeDb(state.sb, state.uid);
+    $('auth').hidden = true; $('app').hidden = false;
+    $('who').textContent = session.user.email || '';
+    loadCache(state.uid); render();
+    await refresh();
+    subscribe();
+  }
+
+  function showAuth(msg){
+    $('app').hidden = true; $('auth').hidden = false;
+    if (msg) $('aMsg').textContent = msg;
+  }
+
+  function signedOut(){
+    try { localStorage.removeItem(CACHE_KEY); } catch(_){}
+    if (state.chan && state.sb) state.sb.removeChannel(state.chan);
+    Object.assign(state, {uid:null, db:null, entries:[], goals:[], settings:null, loaded:false, chan:null});
+    showAuth('Signed out.');
+  }
+
+  $('authForm').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const email=$('aEmail').value.trim(), password=$('aPass').value;
+    $('aErr').textContent=''; $('aMsg').textContent='';
+    if (!email || password.length<6){ $('aErr').textContent='Enter your email and a password of at least 6 characters.'; return; }
+    $('aIn').disabled=true;
+    const {data, error} = await state.sb.auth.signInWithPassword({email, password});
+    $('aIn').disabled=false;
+    if (error){ $('aErr').textContent = /confirm/i.test(error.message) ? 'Confirm your email first: open the link Supabase sent you, then sign in here.' : 'Sign-in failed: '+error.message; return; }
+    if (data.session) signedIn(data.session);
+  });
+  $('aUp').onclick = async () => {
+    const email=$('aEmail').value.trim(), password=$('aPass').value;
+    $('aErr').textContent=''; $('aMsg').textContent='';
+    if (!email || password.length<6){ $('aErr').textContent='Enter your email and a password of at least 6 characters, then tap Create account.'; return; }
+    $('aUp').disabled=true;
+    const {data, error} = await state.sb.auth.signUp({email, password, options:{emailRedirectTo: location.origin + location.pathname}});
+    $('aUp').disabled=false;
+    if (error){ $('aErr').textContent='Could not create the account: '+error.message; return; }
+    if (data.session) signedIn(data.session);
+    else $('aMsg').textContent='Account created. Check your email for a confirmation link, then come back and sign in.';
+  };
+  $('signOut').onclick = async () => { try { await state.sb.auth.signOut(); } catch(_){} if (state.uid) signedOut(); };
+
+  // ---------- backup & import ----------
+  $('exportBtn').onclick = () => {
+    const data = {version:1, exported:new Date().toISOString(), entries:state.entries, goals:state.goals, settings:state.settings};
+    const blob = new Blob([JSON.stringify(data, null, 1)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'finances-backup-'+todayISO()+'.json';
+    document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    $('ioMsg').textContent = 'Backup downloaded.';
+  };
+  $('importFile').addEventListener('change', async () => {
+    const f = $('importFile').files[0]; if (!f) return;
+    $('ioMsg').textContent = 'Importing…';
+    try {
+      const data = JSON.parse(await f.text());
+      const entries = (data.entries||[]).filter(e=>e && e.date && e.amount!=null).map(e => toEntry(e.id || newId(), e, state.uid));
+      const goals = (data.goals||[]).filter(g=>g && g.name).map(g => toGoal(g.id || newId(), g, state.uid));
+      for (let i=0; i<goals.length; i+=500){ const {error} = await state.sb.from('goals').upsert(goals.slice(i,i+500)); if (error) throw error; }
+      for (let i=0; i<entries.length; i+=500){ const {error} = await state.sb.from('entries').upsert(entries.slice(i,i+500)); if (error) throw error; }
+      if (data.settings){ const {error} = await state.sb.from('settings').upsert({user_id:state.uid, data:data.settings}); if (error) throw error; }
+      await refresh();
+      $('ioMsg').textContent = 'Imported '+entries.length+' entries'+(goals.length?' and '+goals.length+' goals':'')+'. Importing the same file again won’t create duplicates.';
+    } catch(e){
+      $('ioMsg').textContent = 'Import failed: '+(e && e.message || 'that file could not be read.');
+    }
+    $('importFile').value = '';
+  });
+
+  // refresh when you come back to the app
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState==='visible') refresh(); });
+  window.addEventListener('online', refresh);
+
+  // ---------- start ----------
+  (async () => {
+    const configured = window.supabase && CFG.url && CFG.anonKey && !/YOUR-|PASTE/i.test(CFG.url + CFG.anonKey);
+    if (!configured){
+      showAuth();
+      $('authForm').hidden = true;
+      $('authLead').innerHTML = 'Almost there. Open <code>config.js</code> and paste your Supabase Project URL and anon key, then reload this page.';
+      return;
+    }
+    state.sb = window.supabase.createClient(CFG.url, CFG.anonKey, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
+    state.sb.auth.onAuthStateChange((event, session) => {
+      // run outside the auth callback so Supabase calls inside signedIn can't deadlock
+      setTimeout(() => {
+        if (event === 'SIGNED_OUT'){ if (state.uid) signedOut(); }
+        else if (session) signedIn(session);
+      }, 0);
+    });
+    const {data:{session}} = await state.sb.auth.getSession();
+    if (session) signedIn(session); else showAuth();
+  })();
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:'){
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  }
+})();
+</script>
+</body>
+</html>
